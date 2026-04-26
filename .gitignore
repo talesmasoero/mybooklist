@@ -1,0 +1,36 @@
+# Dependências
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+
+# Variáveis de ambiente (NUNCA commitar)
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+logs/
+
+# Banco de dados local (Docker volumes)
+postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos temporários do Claude Code
+.claude/cache/
+.claude/sessions/
