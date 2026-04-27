@@ -38,5 +38,21 @@ services:
     depends_on:
       - backend
 
+  migrate:
+    image: migrate/migrate:latest
+    volumes:
+      - ./backend/migrations:/migrations
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://mybooklist:mybooklist_dev@postgres:5432/mybooklist?sslmode=disable",
+        "up"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
+
 volumes:
   postgres_data:
