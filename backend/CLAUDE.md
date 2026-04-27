@@ -54,7 +54,7 @@ import (
     "github.com/go-chi/chi/v5"
 
     // internal
-    "github.com/SEU_USUARIO/mybooklist/backend/internal/domain"
+    "github.com/talesmasoero/mybooklist/backend/internal/domain"
 )
 ```
 

@@ -54,15 +54,24 @@ mybooklist/
 | Resenha | Review / reviews |
 | Meta | Goal / goals |
 
-## Documentos de referência
+## Fonte da verdade
 
-(Estes serão criados em `docs/` e referenciados aqui depois.)
+**Fonte única da verdade para decisões de produto, requisitos e modelagem conceitual: `docs/spec/PROJECT-SPEC.md`.**
 
-- `docs/ARCHITECTURE.md` — Arquitetura do sistema, camadas, deploy.
-- `docs/DATABASE.md` — Schema, decisões de modelagem, migrations.
-- `docs/API.md` — Convenções REST, formato de erros, autenticação.
-- `docs/DESIGN.md` — Identidade visual, paleta, componentes UI.
-- `docs/DECISIONS/` — Architecture Decision Records (ADRs).
+Sempre leia este arquivo antes de:
+- Gerar qualquer nova documentação técnica
+- Criar migrations de banco
+- Implementar handlers, services ou repositories
+- Tomar decisões de produto ou arquitetura
+
+Se houver contradição entre PROJECT-SPEC.md e qualquer outro arquivo, PROJECT-SPEC.md vence.
+
+## Documentos derivados
+
+- `docs/ARCHITECTURE.md` — Arquitetura do sistema (a criar)
+- `docs/DATABASE.md` — Schema e convenções de banco (criado)
+- `docs/API.md` — Convenções REST (a criar)
+- `docs/DECISIONS/` — Architecture Decision Records (a criar)
 
 ## Como verificar mudanças
 

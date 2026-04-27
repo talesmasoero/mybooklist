@@ -29,10 +29,11 @@ services:
         condition: service_healthy
 
   frontend:
-    # Dockerfile será criado em frontend/Dockerfile
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://backend:8080
     ports:
       - "3000:3000"
     depends_on:

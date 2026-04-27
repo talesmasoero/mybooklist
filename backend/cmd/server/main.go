@@ -11,13 +11,16 @@ import (
 	"syscall"
 	"time"
 
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/SEU_USUARIO/mybooklist/backend/internal/config"
-	"github.com/SEU_USUARIO/mybooklist/backend/internal/handlers"
-	appmiddleware "github.com/SEU_USUARIO/mybooklist/backend/internal/middleware"
+	"github.com/talesmasoero/mybooklist/backend/internal/config"
+	"github.com/talesmasoero/mybooklist/backend/internal/handlers"
+	appmiddleware "github.com/talesmasoero/mybooklist/backend/internal/middleware"
+	"github.com/talesmasoero/mybooklist/backend/internal/repositories"
+	"github.com/talesmasoero/mybooklist/backend/internal/services"
 )
 
 func main() {
@@ -44,13 +47,31 @@ func main() {
 	}
 	slog.Info("database connected")
 
+	userRepo := repositories.NewPostgresUserRepository(db)
+	authSvc := services.NewAuthService(userRepo, cfg.JWTSecret)
+	authHandler := handlers.NewAuthHandler(authSvc)
+
 	r := chi.NewRouter()
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{cfg.CORSOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
 	r.Use(appmiddleware.SlogLogger)
 	r.Use(chimiddleware.Recoverer)
 
 	r.Get("/health", handlers.Health(db))
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/register", authHandler.Register)
+			r.Post("/login", authHandler.Login)
+		})
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
