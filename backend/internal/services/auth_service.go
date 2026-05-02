@@ -49,7 +49,7 @@ func (s *authService) Register(ctx context.Context, email, password, name string
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
-		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, Message: "failed to process password", Err: err}
+		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to process password", Err: err}
 	}
 
 	now := time.Now().UTC()
@@ -65,14 +65,14 @@ func (s *authService) Register(ctx context.Context, email, password, name string
 
 	if err := s.repo.Create(ctx, user); err != nil {
 		if errors.Is(err, domain.ErrUserAlreadyExists) {
-			return nil, "", "", &domain.AppError{Code: http.StatusConflict, Message: "email already registered", Err: err}
+			return nil, "", "", &domain.AppError{Code: http.StatusConflict, ErrorCode: "ERR_EMAIL_ALREADY_EXISTS", Message: "email already registered", Err: err}
 		}
-		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, Message: "failed to create user", Err: err}
+		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to create user", Err: err}
 	}
 
 	accessToken, refreshToken, err := s.generateTokens(user.ID)
 	if err != nil {
-		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, Message: "failed to generate tokens", Err: err}
+		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to generate tokens", Err: err}
 	}
 
 	return user, accessToken, refreshToken, nil
@@ -84,18 +84,18 @@ func (s *authService) Login(ctx context.Context, email, password string) (*domai
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
-			return nil, "", "", &domain.AppError{Code: http.StatusUnauthorized, Message: "invalid credentials", Err: domain.ErrInvalidCredentials}
+			return nil, "", "", &domain.AppError{Code: http.StatusUnauthorized, ErrorCode: "ERR_INVALID_CREDENTIALS", Message: "invalid credentials", Err: domain.ErrInvalidCredentials}
 		}
-		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, Message: "failed to retrieve user", Err: err}
+		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to retrieve user", Err: err}
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, "", "", &domain.AppError{Code: http.StatusUnauthorized, Message: "invalid credentials", Err: domain.ErrInvalidCredentials}
+		return nil, "", "", &domain.AppError{Code: http.StatusUnauthorized, ErrorCode: "ERR_INVALID_CREDENTIALS", Message: "invalid credentials", Err: domain.ErrInvalidCredentials}
 	}
 
 	accessToken, refreshToken, err := s.generateTokens(user.ID)
 	if err != nil {
-		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, Message: "failed to generate tokens", Err: err}
+		return nil, "", "", &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to generate tokens", Err: err}
 	}
 
 	return user, accessToken, refreshToken, nil
@@ -107,7 +107,7 @@ func (s *authService) generateTokens(userID uuid.UUID) (string, string, error) {
 
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":        sub,
-		"token_type": "access",
+		"token_type": domain.TokenTypeAccess,
 		"iat":        now.Unix(),
 		"exp":        now.Add(accessTokenDuration).Unix(),
 	}).SignedString(s.jwtSecret)
@@ -117,7 +117,7 @@ func (s *authService) generateTokens(userID uuid.UUID) (string, string, error) {
 
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":        sub,
-		"token_type": "refresh",
+		"token_type": domain.TokenTypeRefresh,
 		"iat":        now.Unix(),
 		"exp":        now.Add(refreshTokenDuration).Unix(),
 	}).SignedString(s.jwtSecret)
@@ -133,13 +133,13 @@ func validateRegisterInput(email, password, name string) error {
 	name = strings.TrimSpace(name)
 
 	if !strings.Contains(email, "@") || !strings.Contains(strings.SplitN(email, "@", 2)[1], ".") {
-		return &domain.AppError{Code: http.StatusBadRequest, Message: "invalid email format"}
+		return &domain.AppError{Code: http.StatusBadRequest, ErrorCode: "ERR_VALIDATION", Message: "invalid email format"}
 	}
 	if len(password) < 8 {
-		return &domain.AppError{Code: http.StatusBadRequest, Message: "password must be at least 8 characters"}
+		return &domain.AppError{Code: http.StatusBadRequest, ErrorCode: "ERR_VALIDATION", Message: "password must be at least 8 characters"}
 	}
 	if name == "" {
-		return &domain.AppError{Code: http.StatusBadRequest, Message: "name is required"}
+		return &domain.AppError{Code: http.StatusBadRequest, ErrorCode: "ERR_VALIDATION", Message: "name is required"}
 	}
 	return nil
 }

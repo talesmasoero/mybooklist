@@ -2,10 +2,16 @@ package domain
 
 import "fmt"
 
+const (
+	TokenTypeAccess  = "access"
+	TokenTypeRefresh = "refresh"
+)
+
 type AppError struct {
-	Code    int
-	Message string
-	Err     error
+	Code      int
+	ErrorCode string
+	Message   string
+	Err       error
 }
 
 func (e *AppError) Error() string {

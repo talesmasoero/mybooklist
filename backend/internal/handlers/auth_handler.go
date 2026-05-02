@@ -57,12 +57,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, authResponse{
-		User: userResponse{
-			ID:        user.ID.String(),
-			Email:     user.Email,
-			Name:      user.Name,
-			CreatedAt: user.CreatedAt,
-		},
+		User:         toUserResponse(user),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})
@@ -82,15 +77,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, authResponse{
-		User: userResponse{
-			ID:        user.ID.String(),
-			Email:     user.Email,
-			Name:      user.Name,
-			CreatedAt: user.CreatedAt,
-		},
+		User:         toUserResponse(user),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})
+}
+
+func toUserResponse(user *domain.User) userResponse {
+	return userResponse{
+		ID:        user.ID.String(),
+		Email:     user.Email,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt,
+	}
 }
 
 func handleServiceError(w http.ResponseWriter, r *http.Request, err error) {
@@ -100,18 +99,12 @@ func handleServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusInternalServerError, "ERR_INTERNAL", "internal server error")
 		return
 	}
-
-	switch appErr.Code {
-	case http.StatusBadRequest:
-		writeError(w, http.StatusBadRequest, "ERR_VALIDATION", appErr.Message)
-	case http.StatusUnauthorized:
-		writeError(w, http.StatusUnauthorized, "ERR_INVALID_CREDENTIALS", appErr.Message)
-	case http.StatusConflict:
-		writeError(w, http.StatusConflict, "ERR_EMAIL_ALREADY_EXISTS", appErr.Message)
-	default:
+	if appErr.Code >= 500 {
 		slog.ErrorContext(r.Context(), "service error", "error", appErr)
 		writeError(w, http.StatusInternalServerError, "ERR_INTERNAL", "internal server error")
+		return
 	}
+	writeError(w, appErr.Code, appErr.ErrorCode, appErr.Message)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
