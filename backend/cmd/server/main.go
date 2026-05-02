@@ -15,6 +15,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 
 	"github.com/talesmasoero/mybooklist/backend/internal/config"
 	"github.com/talesmasoero/mybooklist/backend/internal/handlers"
@@ -26,6 +27,10 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+
+	if err := godotenv.Load("../.env"); err != nil {
+		slog.Warn("no .env file found, using environment variables")
+	}
 
 	cfg, err := config.Load()
 	if err != nil {

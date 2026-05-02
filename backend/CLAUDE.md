@@ -58,6 +58,12 @@ import (
 )
 ```
 
+## Variáveis de ambiente
+
+Em desenvolvimento, o servidor carrega automaticamente o arquivo `.env` da raiz do repositório via `godotenv` (caminho `../.env` relativo ao diretório `backend/`). Se o arquivo não existir, um warning é logado e a execução continua normalmente — o comportamento esperado em produção, onde as variáveis vêm do ambiente do provedor (Railway, Fly.io, etc.) e nenhum `.env` é necessário.
+
+Nunca commitar o `.env` real; o `.env.example` na raiz documenta as variáveis necessárias.
+
 ## Logs
 
 Use `slog` com contexto propagado. Nunca use `fmt.Println` ou `log.Printf`.
