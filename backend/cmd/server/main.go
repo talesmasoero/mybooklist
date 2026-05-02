@@ -18,6 +18,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/talesmasoero/mybooklist/backend/internal/config"
+	"github.com/talesmasoero/mybooklist/backend/internal/googlebooks"
 	"github.com/talesmasoero/mybooklist/backend/internal/handlers"
 	appmiddleware "github.com/talesmasoero/mybooklist/backend/internal/middleware"
 	"github.com/talesmasoero/mybooklist/backend/internal/repositories"
@@ -30,6 +31,9 @@ func main() {
 
 	if err := godotenv.Load("../.env"); err != nil {
 		slog.Warn("no .env file found, using environment variables")
+	}
+	if err := godotenv.Overload("../.env.local"); err != nil {
+		slog.Warn("no .env.local file found, skipping local overrides")
 	}
 
 	cfg, err := config.Load()
@@ -56,6 +60,12 @@ func main() {
 	authSvc := services.NewAuthService(userRepo, cfg.JWTSecret)
 	authHandler := handlers.NewAuthHandler(authSvc)
 
+	bookRepo := repositories.NewPostgresBookRepository(db)
+	readingRepo := repositories.NewPostgresReadingRepository(db)
+	googleBooksClient := googlebooks.NewClient(cfg.GoogleBooksAPIKey)
+	bookSvc := services.NewBookService(bookRepo, readingRepo, googleBooksClient)
+	bookHandler := handlers.NewBookHandler(bookSvc)
+
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
@@ -75,6 +85,14 @@ func main() {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(appmiddleware.JWTAuth(cfg.JWTSecret))
+
+			r.Get("/books/search", bookHandler.Search)
+			r.Post("/library", bookHandler.AddToLibrary)
+			r.Get("/library", bookHandler.ListLibrary)
 		})
 	})
 

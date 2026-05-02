@@ -1,6 +1,16 @@
 package domain
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrBookNotFound      = errors.New("book not found")
+	ErrReadingNotFound   = errors.New("reading not found")
+	ErrAlreadyInLibrary  = errors.New("book already in user library")
+	ErrExternalAPIFailed = errors.New("external API request failed")
+)
 
 const (
 	TokenTypeAccess  = "access"

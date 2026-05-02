@@ -60,9 +60,14 @@ import (
 
 ## Variáveis de ambiente
 
-Em desenvolvimento, o servidor carrega automaticamente o arquivo `.env` da raiz do repositório via `godotenv` (caminho `../.env` relativo ao diretório `backend/`). Se o arquivo não existir, um warning é logado e a execução continua normalmente — o comportamento esperado em produção, onde as variáveis vêm do ambiente do provedor (Railway, Fly.io, etc.) e nenhum `.env` é necessário.
+O servidor carrega variáveis de ambiente em duas etapas, na ordem abaixo:
 
-Nunca commitar o `.env` real; o `.env.example` na raiz documenta as variáveis necessárias.
+1. `../.env` via `godotenv.Load` — valores padrão para desenvolvimento com Docker. Não sobrescreve variáveis já presentes no ambiente do sistema.
+2. `../.env.local` via `godotenv.Overload` — overrides pessoais (ex.: `GOOGLE_BOOKS_API_KEY` local). Sobrescreve o que foi carregado pelo `.env`.
+
+Ambos os arquivos são ignorados silenciosamente se não existirem (apenas um `slog.Warn`). Em produção nenhum dos dois arquivos existe — as variáveis vêm do ambiente do provedor (Fly.io, Railway, etc.).
+
+Nunca commitar `.env` nem `.env.local`; o `.env.example` na raiz documenta as variáveis necessárias. O `.env.local` está no `.gitignore`.
 
 ## Logs
 

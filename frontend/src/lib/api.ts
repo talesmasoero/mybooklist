@@ -24,3 +24,80 @@ api.interceptors.response.use(
 )
 
 export default api
+
+export type ReadingStatus = 'want_to_read' | 'reading' | 'read' | 'abandoned'
+export type AddStatus = Extract<ReadingStatus, 'want_to_read' | 'reading'>
+export type BookSource = 'google_books' | 'manual'
+
+export interface BookSearchResult {
+  google_books_id: string
+  title: string
+  authors: string[]
+  genres: string[]
+  isbn?: string
+  synopsis?: string
+  cover_url?: string
+  total_pages?: number
+}
+
+export interface Book {
+  id: string
+  google_books_id?: string
+  title: string
+  authors: string[]
+  genres: string[]
+  isbn?: string
+  synopsis?: string
+  cover_url?: string
+  total_pages?: number
+  source: BookSource
+  created_at: string
+}
+
+export interface Reading {
+  id: string
+  user_id: string
+  book_id: string
+  status: ReadingStatus
+  current_page: number
+  added_at: string
+  completed_at?: string
+  updated_at: string
+  book?: Book
+}
+
+export interface BookDataPayload {
+  title: string
+  authors: string[]
+  genres?: string[]
+  isbn?: string
+  synopsis?: string
+  cover_url?: string
+  total_pages?: number
+}
+
+export interface AddToLibraryPayload {
+  source: BookSource
+  google_books_id?: string
+  book_data: BookDataPayload
+  status: AddStatus
+}
+
+export async function searchBooks(query: string, max = 10): Promise<BookSearchResult[]> {
+  const { data } = await api.get<BookSearchResult[]>('/api/v1/books/search', {
+    params: { q: query, max },
+  })
+  return data ?? []
+}
+
+export async function addToLibrary(payload: AddToLibraryPayload): Promise<Reading> {
+  const { data } = await api.post<Reading>('/api/v1/library', payload)
+  return data
+}
+
+export async function listLibrary(status?: ReadingStatus): Promise<Reading[]> {
+  const { data } = await api.get<Reading[]>('/api/v1/library', {
+    params: status ? { status } : undefined,
+  })
+  return data ?? []
+}

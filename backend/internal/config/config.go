@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	Port        string
-	JWTSecret   string
-	CORSOrigins []string
+	DatabaseURL        string
+	Port               string
+	JWTSecret          string
+	CORSOrigins        []string
+	GoogleBooksAPIKey  string
 }
 
 func Load() (*Config, error) {
@@ -41,9 +42,10 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		DatabaseURL: databaseURL,
-		Port:        port,
-		JWTSecret:   jwtSecret,
-		CORSOrigins: corsOrigins,
+		DatabaseURL:       databaseURL,
+		Port:              port,
+		JWTSecret:         jwtSecret,
+		CORSOrigins:       corsOrigins,
+		GoogleBooksAPIKey: os.Getenv("GOOGLE_BOOKS_API_KEY"),
 	}, nil
 }
