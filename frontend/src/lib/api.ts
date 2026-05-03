@@ -101,3 +101,8 @@ export async function listLibrary(status?: ReadingStatus): Promise<Reading[]> {
   })
   return data ?? []
 }
+
+export async function updateReadingStatus(readingId: string, status: ReadingStatus): Promise<Reading> {
+  const { data } = await api.patch<Reading>(`/api/v1/library/${readingId}/status`, { status })
+  return data
+}

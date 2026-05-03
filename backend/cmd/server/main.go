@@ -93,6 +93,7 @@ func main() {
 			r.Get("/books/search", bookHandler.Search)
 			r.Post("/library", bookHandler.AddToLibrary)
 			r.Get("/library", bookHandler.ListLibrary)
+			r.Patch("/library/{id}/status", bookHandler.UpdateLibraryStatus)
 		})
 	})
 

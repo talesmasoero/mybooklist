@@ -34,6 +34,7 @@ type BookService interface {
 	SearchExternal(ctx context.Context, query string, maxResults int) ([]domain.BookSearchResult, error)
 	AddToLibrary(ctx context.Context, userID uuid.UUID, payload AddToLibraryPayload) (*domain.Reading, error)
 	ListLibrary(ctx context.Context, userID uuid.UUID, status *string) ([]domain.Reading, error)
+	UpdateReadingStatus(ctx context.Context, userID, readingID uuid.UUID, status string) (*domain.Reading, error)
 }
 
 type bookService struct {
@@ -110,6 +111,30 @@ func (s *bookService) ListLibrary(ctx context.Context, userID uuid.UUID, status 
 		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to list library", Err: err}
 	}
 	return readings, nil
+}
+
+func (s *bookService) UpdateReadingStatus(ctx context.Context, userID, readingID uuid.UUID, status string) (*domain.Reading, error) {
+	if !domain.IsValidStatus(status) {
+		return nil, &domain.AppError{Code: http.StatusBadRequest, ErrorCode: "ERR_VALIDATION", Message: "invalid status"}
+	}
+	reading, err := s.readings.GetByIDWithBook(ctx, readingID)
+	if err != nil {
+		if errors.Is(err, domain.ErrReadingNotFound) {
+			return nil, &domain.AppError{Code: http.StatusNotFound, ErrorCode: "ERR_NOT_FOUND", Message: "reading not found"}
+		}
+		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to get reading", Err: err}
+	}
+	if reading.UserID != userID {
+		return nil, &domain.AppError{Code: http.StatusForbidden, ErrorCode: "ERR_FORBIDDEN", Message: "reading does not belong to user"}
+	}
+	if err := s.readings.UpdateStatus(ctx, readingID, status); err != nil {
+		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to update status", Err: err}
+	}
+	updated, err := s.readings.GetByIDWithBook(ctx, readingID)
+	if err != nil {
+		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to fetch updated reading", Err: err}
+	}
+	return updated, nil
 }
 
 func (s *bookService) resolveBook(ctx context.Context, payload AddToLibraryPayload) (*domain.Book, error) {

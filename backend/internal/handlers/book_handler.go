@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
 	"github.com/talesmasoero/mybooklist/backend/internal/domain"
 	appmiddleware "github.com/talesmasoero/mybooklist/backend/internal/middleware"
 	"github.com/talesmasoero/mybooklist/backend/internal/services"
@@ -77,4 +80,33 @@ func (h *BookHandler) ListLibrary(w http.ResponseWriter, r *http.Request) {
 		readings = []domain.Reading{}
 	}
 	writeJSON(w, http.StatusOK, readings)
+}
+
+func (h *BookHandler) UpdateLibraryStatus(w http.ResponseWriter, r *http.Request) {
+	userID, ok := appmiddleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "ERR_UNAUTHORIZED", "missing user context")
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "ERR_VALIDATION", "invalid reading id")
+		return
+	}
+
+	var body struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Status == "" {
+		writeError(w, http.StatusBadRequest, "ERR_VALIDATION", "status is required")
+		return
+	}
+
+	reading, err := h.bookSvc.UpdateReadingStatus(r.Context(), userID, id, body.Status)
+	if err != nil {
+		handleServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, reading)
 }

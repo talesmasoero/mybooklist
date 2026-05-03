@@ -15,6 +15,7 @@ import (
 type ReadingRepository interface {
 	Create(ctx context.Context, reading *domain.Reading) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Reading, error)
+	GetByIDWithBook(ctx context.Context, id uuid.UUID) (*domain.Reading, error)
 	GetByUserAndBook(ctx context.Context, userID, bookID uuid.UUID) (*domain.Reading, error)
 	ListByUser(ctx context.Context, userID uuid.UUID, status *string) ([]domain.Reading, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
@@ -102,6 +103,51 @@ func (r *postgresReadingRepository) GetByUserAndBook(ctx context.Context, userID
 		}
 		return nil, err
 	}
+	return reading, nil
+}
+
+func (r *postgresReadingRepository) GetByIDWithBook(ctx context.Context, id uuid.UUID) (*domain.Reading, error) {
+	query := `
+		SELECT
+			r.id, r.user_id, r.book_id, r.status, r.current_page, r.added_at, r.completed_at, r.updated_at,
+			b.id, b.google_books_id, b.title, b.authors, b.genres, b.isbn, b.synopsis, b.cover_url, b.total_pages, b.source, b.created_at
+		FROM readings r
+		JOIN books b ON b.id = r.book_id
+		WHERE r.id = $1
+	`
+	reading := &domain.Reading{}
+	book := &domain.Book{}
+	var authors, genres pq.StringArray
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&reading.ID,
+		&reading.UserID,
+		&reading.BookID,
+		&reading.Status,
+		&reading.CurrentPage,
+		&reading.AddedAt,
+		&reading.CompletedAt,
+		&reading.UpdatedAt,
+		&book.ID,
+		&book.GoogleBooksID,
+		&book.Title,
+		&authors,
+		&genres,
+		&book.ISBN,
+		&book.Synopsis,
+		&book.CoverURL,
+		&book.TotalPages,
+		&book.Source,
+		&book.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrReadingNotFound
+		}
+		return nil, err
+	}
+	book.Authors = []string(authors)
+	book.Genres = []string(genres)
+	reading.Book = book
 	return reading, nil
 }
 

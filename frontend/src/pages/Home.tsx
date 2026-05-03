@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSession, clearSession } from '@/lib/auth'
 import { Button } from '@/components/ui/Button'
 import { AddBookModal } from '@/components/AddBookModal'
-import { listLibrary, type Reading, type ReadingStatus } from '@/lib/api'
+import { listLibrary, updateReadingStatus, type Reading, type ReadingStatus } from '@/lib/api'
 
 type LibraryFilter = 'all' | ReadingStatus
 
@@ -22,6 +22,8 @@ const STATUS_BADGE: Record<ReadingStatus, string> = {
   abandoned: 'Abandonado',
 }
 
+const ALL_STATUSES: ReadingStatus[] = ['want_to_read', 'reading', 'read', 'abandoned']
+
 export function Home() {
   const navigate = useNavigate()
   const session = getSession()
@@ -32,6 +34,7 @@ export function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<LibraryFilter>('all')
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -59,6 +62,17 @@ export function Home() {
   function handleAdded() {
     setModalOpen(false)
     void reload()
+  }
+
+  async function handleStatusChange(id: string, status: ReadingStatus) {
+    try {
+      const updated = await updateReadingStatus(id, status)
+      setReadings((prev) => prev.map((r) => (r.id === id ? updated : r)))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar status.'
+      setStatusError(message)
+      setTimeout(() => setStatusError(null), 4000)
+    }
   }
 
   const reading = readings.filter((r) => r.status === 'reading')
@@ -111,7 +125,12 @@ export function Home() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {reading.map((r) => (
-                <ReadingCard key={r.id} reading={r} variant="large" />
+                <ReadingCard
+                  key={r.id}
+                  reading={r}
+                  variant="large"
+                  onStatusChange={handleStatusChange}
+                />
               ))}
             </div>
           )}
@@ -153,7 +172,12 @@ export function Home() {
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filteredLibrary.map((r) => (
-                <ReadingCard key={r.id} reading={r} variant="compact" />
+                <ReadingCard
+                  key={r.id}
+                  reading={r}
+                  variant="compact"
+                  onStatusChange={handleStatusChange}
+                />
               ))}
             </div>
           )}
@@ -165,6 +189,12 @@ export function Home() {
         onClose={() => setModalOpen(false)}
         onAdded={handleAdded}
       />
+
+      {statusError && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-md">
+          {statusError}
+        </div>
+      )}
     </div>
   )
 }
@@ -177,19 +207,83 @@ function Placeholder({ children }: { children: React.ReactNode }) {
   )
 }
 
+function StatusMenu({
+  currentStatus,
+  readingId,
+  onSelect,
+}: {
+  currentStatus: ReadingStatus
+  readingId: string
+  onSelect: (id: string, status: ReadingStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((o) => !o)
+        }}
+        className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+        aria-label="Mudar status"
+      >
+        ···
+      </button>
+      {open && (
+        <div className="absolute right-0 top-7 z-10 min-w-[130px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          {ALL_STATUSES.filter((s) => s !== currentStatus).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                onSelect(readingId, s)
+                setOpen(false)
+              }}
+              className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+            >
+              {STATUS_BADGE[s]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ReadingCard({
   reading,
   variant,
+  onStatusChange,
 }: {
   reading: Reading
   variant: 'large' | 'compact'
+  onStatusChange: (id: string, status: ReadingStatus) => void
 }) {
   const book = reading.book
   if (!book) return null
 
   if (variant === 'compact') {
     return (
-      <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-2">
+      <div className="relative flex flex-col rounded-xl border border-gray-200 bg-white p-2">
+        <div className="absolute right-1 top-1">
+          <StatusMenu
+            currentStatus={reading.status}
+            readingId={reading.id}
+            onSelect={onStatusChange}
+          />
+        </div>
         <div className="mb-2 aspect-[2/3] w-full overflow-hidden rounded bg-gray-100">
           {book.cover_url && (
             <img
@@ -211,13 +305,20 @@ function ReadingCard({
   }
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="relative flex gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="absolute right-3 top-3">
+        <StatusMenu
+          currentStatus={reading.status}
+          readingId={reading.id}
+          onSelect={onStatusChange}
+        />
+      </div>
       <div className="h-28 w-20 flex-shrink-0 overflow-hidden rounded bg-gray-100">
         {book.cover_url && (
           <img src={book.cover_url} alt="" className="h-full w-full object-cover" />
         )}
       </div>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col pr-6">
         <p className="text-sm font-semibold text-[#162447]">{book.title}</p>
         <p className="text-xs text-gray-500">{book.authors.join(', ')}</p>
         <p className="mt-2 text-xs text-gray-600">
