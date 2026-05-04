@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, type ReactNode } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import { isAuthenticated } from '@/lib/auth'
 import { Landing } from '@/pages/Landing'
 import { Login } from '@/pages/Login'
