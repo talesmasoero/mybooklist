@@ -66,6 +66,10 @@ func main() {
 	bookSvc := services.NewBookService(bookRepo, readingRepo, googleBooksClient)
 	bookHandler := handlers.NewBookHandler(bookSvc)
 
+	sessionRepo := repositories.NewPostgresSessionRepository(db)
+	sessionSvc := services.NewSessionService(sessionRepo, readingRepo)
+	sessionHandler := handlers.NewSessionHandler(sessionSvc)
+
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
@@ -94,6 +98,11 @@ func main() {
 			r.Post("/library", bookHandler.AddToLibrary)
 			r.Get("/library", bookHandler.ListLibrary)
 			r.Patch("/library/{id}/status", bookHandler.UpdateLibraryStatus)
+
+			r.Post("/readings/{readingId}/sessions", sessionHandler.Create)
+			r.Get("/readings/{readingId}/sessions", sessionHandler.List)
+			r.Patch("/sessions/{sessionId}", sessionHandler.Update)
+			r.Delete("/sessions/{sessionId}", sessionHandler.Delete)
 		})
 	})
 

@@ -106,3 +106,39 @@ export async function updateReadingStatus(readingId: string, status: ReadingStat
   const { data } = await api.patch<Reading>(`/api/v1/library/${readingId}/status`, { status })
   return data
 }
+
+export interface Session {
+  id: string
+  reading_id: string
+  start_page: number
+  end_page: number
+  duration_seconds?: number
+  session_date: string
+  created_at: string
+}
+
+export interface CreateSessionPayload {
+  start_page: number
+  end_page: number
+  duration_seconds?: number
+  session_date?: string
+}
+
+export async function createSession(readingId: string, payload: CreateSessionPayload): Promise<Session> {
+  const { data } = await api.post<Session>(`/api/v1/readings/${readingId}/sessions`, payload)
+  return data
+}
+
+export async function listSessions(readingId: string): Promise<Session[]> {
+  const { data } = await api.get<Session[]>(`/api/v1/readings/${readingId}/sessions`)
+  return data ?? []
+}
+
+export async function updateSession(sessionId: string, payload: Partial<CreateSessionPayload>): Promise<Session> {
+  const { data } = await api.patch<Session>(`/api/v1/sessions/${sessionId}`, payload)
+  return data
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  await api.delete(`/api/v1/sessions/${sessionId}`)
+}

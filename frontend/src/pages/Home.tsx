@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getSession, clearSession } from '@/lib/auth'
 import { Button } from '@/components/ui/Button'
 import { AddBookModal } from '@/components/AddBookModal'
+import { SessionModal } from '@/components/SessionModal'
 import { listLibrary, updateReadingStatus, type Reading, type ReadingStatus } from '@/lib/api'
 
 type LibraryFilter = 'all' | ReadingStatus
@@ -30,6 +31,11 @@ export function Home() {
   const userName = session?.user.name ?? 'Leitor'
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [sessionModal, setSessionModal] = useState<{
+    readingId: string
+    currentPage: number
+    totalPages?: number
+  } | null>(null)
   const [readings, setReadings] = useState<Reading[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -130,6 +136,9 @@ export function Home() {
                   reading={r}
                   variant="large"
                   onStatusChange={handleStatusChange}
+                  onRegisterSession={(readingId, currentPage, totalPages) =>
+                    setSessionModal({ readingId, currentPage, totalPages })
+                  }
                 />
               ))}
             </div>
@@ -189,6 +198,16 @@ export function Home() {
         onClose={() => setModalOpen(false)}
         onAdded={handleAdded}
       />
+
+      {sessionModal && (
+        <SessionModal
+          readingId={sessionModal.readingId}
+          currentPage={sessionModal.currentPage}
+          totalPages={sessionModal.totalPages}
+          onCreated={() => { setSessionModal(null); void reload() }}
+          onClose={() => setSessionModal(null)}
+        />
+      )}
 
       {statusError && (
         <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-md">
@@ -266,10 +285,12 @@ function ReadingCard({
   reading,
   variant,
   onStatusChange,
+  onRegisterSession,
 }: {
   reading: Reading
   variant: 'large' | 'compact'
   onStatusChange: (id: string, status: ReadingStatus) => void
+  onRegisterSession?: (readingId: string, currentPage: number, totalPages?: number) => void
 }) {
   const book = reading.book
   if (!book) return null
@@ -325,6 +346,14 @@ function ReadingCard({
           Página {reading.current_page}
           {book.total_pages ? ` / ${book.total_pages}` : ''}
         </p>
+        {onRegisterSession && (
+          <button
+            onClick={() => onRegisterSession(reading.id, reading.current_page, book.total_pages)}
+            className="mt-3 self-start rounded-lg border border-[#162447] px-3 py-1.5 text-xs font-medium text-[#162447] hover:bg-[#162447]/5 transition-colors"
+          >
+            Registrar sessão
+          </button>
+        )}
       </div>
     </div>
   )
