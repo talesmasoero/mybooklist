@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { getSession, clearSession } from '@/lib/auth'
 import { Button } from '@/components/ui/Button'
 import { AddBookModal } from '@/components/AddBookModal'
@@ -91,9 +91,9 @@ export function Home() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
           <span className="text-lg font-bold text-[#162447]">MyBookList</span>
           <div className="flex items-center gap-4 text-sm text-gray-600">
-            <span>
+            <Link to="/profile" className="hover:underline">
               Olá, <strong className="text-[#162447]">{userName}</strong>
-            </span>
+            </Link>
             <button
               onClick={handleLogout}
               className="text-gray-400 hover:text-red-500 transition-colors"

@@ -59,6 +59,8 @@ func main() {
 	userRepo := repositories.NewPostgresUserRepository(db)
 	authSvc := services.NewAuthService(userRepo, cfg.JWTSecret)
 	authHandler := handlers.NewAuthHandler(authSvc)
+	userSvc := services.NewUserService(userRepo)
+	userHandler := handlers.NewUserHandler(userSvc)
 
 	bookRepo := repositories.NewPostgresBookRepository(db)
 	readingRepo := repositories.NewPostgresReadingRepository(db)
@@ -103,6 +105,11 @@ func main() {
 			r.Get("/readings/{readingId}/sessions", sessionHandler.List)
 			r.Patch("/sessions/{sessionId}", sessionHandler.Update)
 			r.Delete("/sessions/{sessionId}", sessionHandler.Delete)
+
+			r.Get("/me", userHandler.GetProfile)
+			r.Patch("/me", userHandler.UpdateName)
+			r.Patch("/me/password", userHandler.UpdatePassword)
+			r.Delete("/me", userHandler.DeleteAccount)
 		})
 	})
 

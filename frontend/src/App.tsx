@@ -5,6 +5,7 @@ import { Landing } from '@/pages/Landing'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
 import { Home } from '@/pages/Home'
+import { Profile } from '@/pages/Profile'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   return isAuthenticated() ? <>{children}</> : <Navigate to="/" replace />
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

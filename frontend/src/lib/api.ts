@@ -25,6 +25,13 @@ api.interceptors.response.use(
 
 export default api
 
+export interface User {
+  id: string
+  email: string
+  name: string
+  created_at: string
+}
+
 export type ReadingStatus = 'want_to_read' | 'reading' | 'read' | 'abandoned'
 export type AddStatus = Extract<ReadingStatus, 'want_to_read' | 'reading'>
 export type BookSource = 'google_books' | 'manual'
@@ -141,4 +148,22 @@ export async function updateSession(sessionId: string, payload: Partial<CreateSe
 
 export async function deleteSession(sessionId: string): Promise<void> {
   await api.delete(`/api/v1/sessions/${sessionId}`)
+}
+
+export async function getProfile(): Promise<User> {
+  const { data } = await api.get<User>('/api/v1/me')
+  return data
+}
+
+export async function updateName(name: string): Promise<User> {
+  const { data } = await api.patch<User>('/api/v1/me', { name })
+  return data
+}
+
+export async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.patch('/api/v1/me/password', { current_password: currentPassword, new_password: newPassword })
+}
+
+export async function deleteAccount(currentPassword: string): Promise<void> {
+  await api.delete('/api/v1/me', { data: { current_password: currentPassword } })
 }

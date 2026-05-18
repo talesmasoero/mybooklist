@@ -15,6 +15,9 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	UpdateName(ctx context.Context, id uuid.UUID, name string) error
+	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type postgresUserRepository struct {
@@ -97,4 +100,52 @@ func (r *postgresUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*do
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *postgresUserRepository) UpdateName(ctx context.Context, id uuid.UUID, name string) error {
+	query := `UPDATE users SET name = $1, updated_at = now() WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, name, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *postgresUserRepository) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
+	query := `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *postgresUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
 }

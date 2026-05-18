@@ -17,9 +17,12 @@ import (
 )
 
 type mockUserRepository struct {
-	createFunc     func(ctx context.Context, user *domain.User) error
-	getByEmailFunc func(ctx context.Context, email string) (*domain.User, error)
-	getByIDFunc    func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	createFunc         func(ctx context.Context, user *domain.User) error
+	getByEmailFunc     func(ctx context.Context, email string) (*domain.User, error)
+	getByIDFunc        func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	updateNameFunc     func(ctx context.Context, id uuid.UUID, name string) error
+	updatePasswordFunc func(ctx context.Context, id uuid.UUID, passwordHash string) error
+	deleteFunc         func(ctx context.Context, id uuid.UUID) error
 }
 
 func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) error {
@@ -41,6 +44,27 @@ func (m *mockUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 		return m.getByIDFunc(ctx, id)
 	}
 	return nil, domain.ErrUserNotFound
+}
+
+func (m *mockUserRepository) UpdateName(ctx context.Context, id uuid.UUID, name string) error {
+	if m.updateNameFunc != nil {
+		return m.updateNameFunc(ctx, id, name)
+	}
+	return nil
+}
+
+func (m *mockUserRepository) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
+	if m.updatePasswordFunc != nil {
+		return m.updatePasswordFunc(ctx, id, passwordHash)
+	}
+	return nil
+}
+
+func (m *mockUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, id)
+	}
+	return nil
 }
 
 func TestMain(m *testing.M) {
