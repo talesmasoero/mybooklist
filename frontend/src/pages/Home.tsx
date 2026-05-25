@@ -266,7 +266,8 @@ function StatusMenu({
           {ALL_STATUSES.filter((s) => s !== currentStatus).map((s) => (
             <button
               key={s}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 onSelect(readingId, s)
                 setOpen(false)
               }}
@@ -292,12 +293,16 @@ function ReadingCard({
   onStatusChange: (id: string, status: ReadingStatus) => void
   onRegisterSession?: (readingId: string, currentPage: number, totalPages?: number) => void
 }) {
+  const navigate = useNavigate()
   const book = reading.book
   if (!book) return null
 
   if (variant === 'compact') {
     return (
-      <div className="relative flex flex-col rounded-xl border border-gray-200 bg-white p-2">
+      <div
+        className="relative flex flex-col rounded-xl border border-gray-200 bg-white p-2 cursor-pointer"
+        onClick={() => navigate('/library/' + reading.id)}
+      >
         <div className="absolute right-1 top-1">
           <StatusMenu
             currentStatus={reading.status}
@@ -326,7 +331,10 @@ function ReadingCard({
   }
 
   return (
-    <div className="relative flex gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+    <div
+      className="relative flex gap-3 rounded-2xl border border-gray-200 bg-white p-4 cursor-pointer"
+      onClick={() => navigate('/library/' + reading.id)}
+    >
       <div className="absolute right-3 top-3">
         <StatusMenu
           currentStatus={reading.status}
@@ -348,7 +356,7 @@ function ReadingCard({
         </p>
         {onRegisterSession && (
           <button
-            onClick={() => onRegisterSession(reading.id, reading.current_page, book.total_pages)}
+            onClick={(e) => { e.stopPropagation(); onRegisterSession(reading.id, reading.current_page, book.total_pages) }}
             className="mt-3 self-start rounded-lg border border-[#162447] px-3 py-1.5 text-xs font-medium text-[#162447] hover:bg-[#162447]/5 transition-colors"
           >
             Registrar sessão

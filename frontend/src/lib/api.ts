@@ -114,6 +114,11 @@ export async function updateReadingStatus(readingId: string, status: ReadingStat
   return data
 }
 
+export async function getReading(readingId: string): Promise<Reading> {
+  const { data } = await api.get<Reading>(`/api/v1/library/${readingId}`)
+  return data
+}
+
 export interface Session {
   id: string
   reading_id: string

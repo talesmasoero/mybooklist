@@ -110,3 +110,24 @@ func (h *BookHandler) UpdateLibraryStatus(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, http.StatusOK, reading)
 }
+
+func (h *BookHandler) GetReading(w http.ResponseWriter, r *http.Request) {
+	userID, ok := appmiddleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "ERR_UNAUTHORIZED", "missing user context")
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "ERR_VALIDATION", "invalid reading id")
+		return
+	}
+
+	reading, err := h.bookSvc.GetReading(r.Context(), userID, id)
+	if err != nil {
+		handleServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, reading)
+}

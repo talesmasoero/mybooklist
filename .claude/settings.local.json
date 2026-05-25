@@ -3,7 +3,9 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"D:\\\\projects\\\\mybooklist\\\\frontend\\\\src\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(go build *)"
+      "Bash(go build *)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path \"D:\\\\projects\\\\mybooklist\\\\backend\" -Recurse -Force)"
     ]
   }
 }

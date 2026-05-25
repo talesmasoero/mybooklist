@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createSession, type CreateSessionPayload } from '@/lib/api'
+import { createSession, updateSession, type CreateSessionPayload, type Session } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -9,17 +9,28 @@ interface SessionModalProps {
   totalPages?: number
   onCreated: () => void
   onClose: () => void
+  initialSession?: Session
 }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function SessionModal({ readingId, currentPage, totalPages, onCreated, onClose }: SessionModalProps) {
-  const [startPage, setStartPage] = useState(String(currentPage))
-  const [endPage, setEndPage] = useState('')
-  const [sessionDate, setSessionDate] = useState(todayISO())
-  const [durationMin, setDurationMin] = useState('')
+export function SessionModal({ readingId, currentPage, totalPages, onCreated, onClose, initialSession }: SessionModalProps) {
+  const [startPage, setStartPage] = useState(
+    initialSession ? String(initialSession.start_page) : String(currentPage)
+  )
+  const [endPage, setEndPage] = useState(
+    initialSession ? String(initialSession.end_page) : ''
+  )
+  const [sessionDate, setSessionDate] = useState(
+    initialSession ? initialSession.session_date.slice(0, 10) : todayISO()
+  )
+  const [durationMin, setDurationMin] = useState(
+    initialSession?.duration_seconds != null
+      ? String(Math.round(initialSession.duration_seconds / 60))
+      : ''
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +68,11 @@ export function SessionModal({ readingId, currentPage, totalPages, onCreated, on
         session_date: sessionDate || undefined,
         duration_seconds: durationMin ? Math.round(Number(durationMin) * 60) : undefined,
       }
-      await createSession(readingId, payload)
+      if (initialSession) {
+        await updateSession(initialSession.id, payload)
+      } else {
+        await createSession(readingId, payload)
+      }
       onCreated()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao registrar sessão.'
@@ -79,7 +94,9 @@ export function SessionModal({ readingId, currentPage, totalPages, onCreated, on
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[#162447]">Registrar sessão</h3>
+          <h3 className="text-lg font-semibold text-[#162447]">
+            {initialSession ? 'Editar sessão' : 'Registrar sessão'}
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -130,7 +147,7 @@ export function SessionModal({ readingId, currentPage, totalPages, onCreated, on
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <Button type="submit" loading={submitting} className="w-full">
-            Salvar sessão
+            {initialSession ? 'Salvar alterações' : 'Salvar sessão'}
           </Button>
         </form>
       </div>
