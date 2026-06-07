@@ -4,6 +4,7 @@ import api from '@/lib/api'
 import { saveSession, type SessionUser } from '@/lib/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { TermsModal } from '@/components/TermsModal'
 
 interface RegisterResponse {
   access_token: string
@@ -17,6 +18,7 @@ export function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [consented, setConsented] = useState(false)
+  const [showTerms, setShowTerms] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -88,9 +90,21 @@ export function Register() {
             />
             <span>
               Li e aceito os{' '}
-              <span className="font-medium text-[#162447]">termos de uso</span>
+              <button
+                type="button"
+                className="font-medium text-[#162447] underline"
+                onClick={() => setShowTerms(true)}
+              >
+                termos de uso
+              </button>
               {' '}e a{' '}
-              <span className="font-medium text-[#162447]">política de privacidade</span>
+              <button
+                type="button"
+                className="font-medium text-[#162447] underline"
+                onClick={() => setShowTerms(true)}
+              >
+                política de privacidade
+              </button>
             </span>
           </label>
 
@@ -106,6 +120,12 @@ export function Register() {
           </Link>
         </p>
       </div>
+
+      <TermsModal
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={() => { setConsented(true); setShowTerms(false) }}
+      />
     </div>
   )
 }
