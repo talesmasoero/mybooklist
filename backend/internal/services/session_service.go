@@ -43,7 +43,7 @@ func NewSessionService(sessions repositories.SessionRepository, readings reposit
 }
 
 func (s *sessionService) CreateSession(ctx context.Context, userID, readingID uuid.UUID, payload CreateSessionPayload) (*domain.Session, error) {
-	reading, err := s.readings.GetByID(ctx, readingID)
+	reading, err := s.readings.GetByIDWithBook(ctx, readingID)
 	if err != nil {
 		if errors.Is(err, domain.ErrReadingNotFound) {
 			return nil, &domain.AppError{Code: http.StatusNotFound, ErrorCode: "ERR_NOT_FOUND", Message: "reading not found"}
@@ -57,7 +57,7 @@ func (s *sessionService) CreateSession(ctx context.Context, userID, readingID uu
 		return nil, &domain.AppError{Code: http.StatusBadRequest, ErrorCode: "ERR_INVALID_PAGE_RANGE", Message: "end_page must be greater than or equal to start_page", Err: domain.ErrInvalidPageRange}
 	}
 
-	if reading.Status != domain.StatusReading {
+	if reading.Status != domain.StatusReading && reading.Status != domain.StatusRead {
 		if err := s.readings.UpdateStatus(ctx, readingID, domain.StatusReading); err != nil {
 			return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to update reading status", Err: err}
 		}
@@ -76,6 +76,15 @@ func (s *sessionService) CreateSession(ctx context.Context, userID, readingID uu
 	if err := s.sessions.Create(ctx, session); err != nil {
 		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to create session", Err: err}
 	}
+
+	if reading.Status != domain.StatusRead &&
+		reading.Book != nil && reading.Book.TotalPages != nil &&
+		payload.EndPage >= *reading.Book.TotalPages {
+		if err := s.readings.UpdateStatus(ctx, readingID, domain.StatusRead); err != nil {
+			return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to mark reading as complete", Err: err}
+		}
+	}
+
 	return session, nil
 }
 
@@ -107,7 +116,7 @@ func (s *sessionService) UpdateSession(ctx context.Context, userID, sessionID uu
 		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to get session", Err: err}
 	}
 
-	reading, err := s.readings.GetByID(ctx, session.ReadingID)
+	reading, err := s.readings.GetByIDWithBook(ctx, session.ReadingID)
 	if err != nil {
 		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to get reading", Err: err}
 	}
@@ -127,6 +136,15 @@ func (s *sessionService) UpdateSession(ctx context.Context, userID, sessionID uu
 	if err := s.sessions.Update(ctx, session); err != nil {
 		return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to update session", Err: err}
 	}
+
+	if reading.Status != domain.StatusRead &&
+		reading.Book != nil && reading.Book.TotalPages != nil &&
+		payload.EndPage >= *reading.Book.TotalPages {
+		if err := s.readings.UpdateStatus(ctx, session.ReadingID, domain.StatusRead); err != nil {
+			return nil, &domain.AppError{Code: http.StatusInternalServerError, ErrorCode: "ERR_INTERNAL", Message: "failed to mark reading as complete", Err: err}
+		}
+	}
+
 	return session, nil
 }
 

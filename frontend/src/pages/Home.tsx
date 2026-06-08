@@ -235,7 +235,7 @@ export function Home() {
           readingId={sessionModal.readingId}
           currentPage={sessionModal.currentPage}
           totalPages={sessionModal.totalPages}
-          onCreated={() => { setSessionModal(null); void reload() }}
+          onCreated={() => { setSessionModal(null); void reload(); getCurrentGoal().then(setGoal).catch(() => {}) }}
           onClose={() => setSessionModal(null)}
         />
       )}
