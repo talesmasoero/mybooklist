@@ -4,7 +4,8 @@ import { getSession, clearSession } from '@/lib/auth'
 import { Button } from '@/components/ui/Button'
 import { AddBookModal } from '@/components/AddBookModal'
 import { SessionModal } from '@/components/SessionModal'
-import { listLibrary, updateReadingStatus, type Reading, type ReadingStatus } from '@/lib/api'
+import { GoalModal } from '@/components/GoalModal'
+import { listLibrary, updateReadingStatus, getCurrentGoal, type Reading, type ReadingStatus, type GoalProgress } from '@/lib/api'
 
 type LibraryFilter = 'all' | ReadingStatus
 
@@ -41,6 +42,8 @@ export function Home() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<LibraryFilter>('all')
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [goal, setGoal] = useState<GoalProgress | null | undefined>(undefined)
+  const [goalModalOpen, setGoalModalOpen] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -58,6 +61,7 @@ export function Home() {
 
   useEffect(() => {
     void reload()
+    getCurrentGoal().then(setGoal).catch(() => setGoal(null))
   }, [reload])
 
   function handleLogout() {
@@ -74,6 +78,7 @@ export function Home() {
     try {
       const updated = await updateReadingStatus(id, status)
       setReadings((prev) => prev.map((r) => (r.id === id ? updated : r)))
+      getCurrentGoal().then(setGoal).catch(() => {})
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar status.'
       setStatusError(message)
@@ -147,12 +152,38 @@ export function Home() {
 
         <section className="mb-8">
           <h2 className="mb-4 text-xl font-semibold text-gray-800">Meta anual</h2>
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center text-gray-400">
-            <p className="text-sm">
-              Defina sua meta de leitura para {new Date().getFullYear()}.
-            </p>
-            <p className="mt-1 text-xs text-gray-300">Em breve</p>
-          </div>
+          {goal === undefined ? null : goal === null ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center text-gray-400">
+              <p className="text-sm">Defina sua meta de leitura para {new Date().getFullYear()}.</p>
+              <button
+                onClick={() => setGoalModalOpen(true)}
+                className="mt-3 inline-block rounded-lg border border-[#162447] px-4 py-2 text-sm font-medium text-[#162447] hover:bg-[#162447]/5 transition-colors"
+              >
+                Definir meta
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 bg-white px-6 py-5">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">
+                  {goal.books_read} de {goal.target_books} livros lidos em {goal.year}
+                </p>
+                <button
+                  onClick={() => setGoalModalOpen(true)}
+                  className="text-xs text-gray-400 hover:text-[#162447] transition-colors"
+                >
+                  Editar
+                </button>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-[#162447] transition-all duration-500"
+                  style={{ width: `${goal.percentage}%` }}
+                />
+              </div>
+              <p className="mt-2 text-right text-xs text-gray-500">{goal.percentage}%</p>
+            </div>
+          )}
         </section>
 
         <section>
@@ -206,6 +237,14 @@ export function Home() {
           totalPages={sessionModal.totalPages}
           onCreated={() => { setSessionModal(null); void reload() }}
           onClose={() => setSessionModal(null)}
+        />
+      )}
+
+      {goalModalOpen && (
+        <GoalModal
+          initialGoal={goal ?? undefined}
+          onCreated={(g) => { setGoal(g); setGoalModalOpen(false) }}
+          onClose={() => setGoalModalOpen(false)}
         />
       )}
 

@@ -155,6 +155,43 @@ export async function deleteSession(sessionId: string): Promise<void> {
   await api.delete(`/api/v1/sessions/${sessionId}`)
 }
 
+// ─── Goals ───────────────────────────────────────────────────────────────────
+
+export interface Goal {
+  id: string
+  user_id: string
+  year: number
+  target_books: number
+  created_at: string
+  updated_at: string
+}
+
+export interface GoalProgress extends Goal {
+  books_read: number
+  percentage: number
+}
+
+export async function getCurrentGoal(): Promise<GoalProgress | null> {
+  const response = await api.get<GoalProgress>('/api/v1/goals/current')
+  if (response.status === 204) return null
+  return response.data
+}
+
+export async function createGoal(year: number, targetBooks: number): Promise<GoalProgress> {
+  const { data } = await api.post<GoalProgress>('/api/v1/goals', {
+    year,
+    target_books: targetBooks,
+  })
+  return data
+}
+
+export async function updateGoal(goalId: string, targetBooks: number): Promise<GoalProgress> {
+  const { data } = await api.patch<GoalProgress>(`/api/v1/goals/${goalId}`, {
+    target_books: targetBooks,
+  })
+  return data
+}
+
 // ─── Security questions ──────────────────────────────────────────────────────
 
 export interface SecurityQuestion {

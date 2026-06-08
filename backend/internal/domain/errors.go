@@ -10,6 +10,8 @@ var (
 	ErrReadingNotFound   = errors.New("reading not found")
 	ErrAlreadyInLibrary  = errors.New("book already in user library")
 	ErrExternalAPIFailed = errors.New("external API request failed")
+	ErrGoalNotFound      = errors.New("goal not found")
+	ErrGoalAlreadyExists = errors.New("goal already exists for this year")
 )
 
 const (

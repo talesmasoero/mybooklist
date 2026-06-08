@@ -86,6 +86,11 @@ func main() {
 	sessionSvc := services.NewSessionService(sessionRepo, readingRepo)
 	sessionHandler := handlers.NewSessionHandler(sessionSvc)
 
+	// Goals
+	goalRepo := repositories.NewGoalRepository(db)
+	goalSvc := services.NewGoalService(goalRepo)
+	goalHandler := handlers.NewGoalHandler(goalSvc)
+
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
@@ -135,6 +140,10 @@ func main() {
 
 			r.Get("/me/security-answers", sqHandler.GetMyAnswerIDs)
 			r.Patch("/me/security-answers", sqHandler.SaveAnswers)
+
+			r.Post("/goals", goalHandler.Create)
+			r.Get("/goals/current", goalHandler.GetCurrentYear)
+			r.Patch("/goals/{goalId}", goalHandler.Update)
 		})
 	})
 
