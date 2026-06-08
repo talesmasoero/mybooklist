@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getSession, saveSession, clearSession } from '@/lib/auth'
-import { getProfile, updateName, updatePassword, deleteAccount } from '@/lib/api'
-import type { User } from '@/lib/api'
+import {
+  getProfile, updateName, updatePassword, deleteAccount,
+  listSecurityQuestions, getMySecurityAnswers, saveSecurityAnswers,
+  type User, type SecurityQuestion,
+} from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -18,6 +21,13 @@ function useSuccessMessage() {
 
   return { message, show }
 }
+
+interface AnswerBlock {
+  questionId: number
+  answer: string
+}
+
+const emptyBlock = (): AnswerBlock => ({ questionId: 0, answer: '' })
 
 export function Profile() {
   const navigate = useNavigate()
@@ -40,6 +50,13 @@ export function Profile() {
   const [pwdSaving, setPwdSaving] = useState(false)
   const pwdSuccess = useSuccessMessage()
 
+  // Security questions section
+  const [allQuestions, setAllQuestions] = useState<SecurityQuestion[]>([])
+  const [sqBlocks, setSqBlocks] = useState<AnswerBlock[]>([emptyBlock(), emptyBlock(), emptyBlock()])
+  const [sqError, setSqError] = useState<string | null>(null)
+  const [sqSaving, setSqSaving] = useState(false)
+  const sqSuccess = useSuccessMessage()
+
   // Delete section
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletePwd, setDeletePwd] = useState('')
@@ -54,7 +71,51 @@ export function Profile() {
         setName(u.name)
       })
       .catch((err: Error) => setLoadError(err.message))
+
+    listSecurityQuestions().then(setAllQuestions).catch(() => {})
+
+    getMySecurityAnswers()
+      .then((ids) => {
+        setSqBlocks((prev) =>
+          prev.map((b, i) => ({ ...b, questionId: ids[i] ?? 0 }))
+        )
+      })
+      .catch(() => {})
   }, [])
+
+  function updateSqBlock(index: number, field: keyof AnswerBlock, value: string | number) {
+    setSqBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, [field]: value } : b)))
+  }
+
+  function getAvailableQuestions(blockIndex: number): SecurityQuestion[] {
+    const selectedIds = sqBlocks
+      .map((b, i) => (i !== blockIndex ? b.questionId : 0))
+      .filter((id) => id !== 0)
+    return allQuestions.filter((q) => !selectedIds.includes(q.id))
+  }
+
+  function validateSqAnswers(): string | null {
+    const b1 = sqBlocks[0]
+    const b2 = sqBlocks[1]
+    const b3 = sqBlocks[2]
+
+    if (b1.questionId === 0 || b1.answer.trim().length < 2) {
+      return 'Selecione a pergunta 1 e escreva uma resposta com pelo menos 2 caracteres.'
+    }
+    if (b2.questionId === 0 || b2.answer.trim().length < 2) {
+      return 'Selecione a pergunta 2 e escreva uma resposta com pelo menos 2 caracteres.'
+    }
+    if (b3.questionId !== 0 || b3.answer.trim() !== '') {
+      if (b3.questionId === 0 || b3.answer.trim().length < 2) {
+        return 'Se preenchida, a pergunta 3 precisa ter uma pergunta selecionada e resposta válida.'
+      }
+    }
+    const selectedIds = sqBlocks.filter((b) => b.questionId !== 0).map((b) => b.questionId)
+    if (new Set(selectedIds).size !== selectedIds.length) {
+      return 'As perguntas de segurança devem ser diferentes entre si.'
+    }
+    return null
+  }
 
   function handleLogout() {
     clearSession()
@@ -108,6 +169,31 @@ export function Profile() {
       setPwdError(err instanceof Error ? err.message : 'Erro ao alterar senha.')
     } finally {
       setPwdSaving(false)
+    }
+  }
+
+  async function handleSqSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSqError(null)
+
+    const validationError = validateSqAnswers()
+    if (validationError) {
+      setSqError(validationError)
+      return
+    }
+
+    setSqSaving(true)
+    try {
+      const answers = sqBlocks
+        .filter((b) => b.questionId !== 0 && b.answer.trim().length >= 2)
+        .map((b) => ({ question_id: b.questionId, answer: b.answer.trim() }))
+      await saveSecurityAnswers(answers)
+      setSqBlocks((prev) => prev.map((b) => ({ ...b, answer: '' })))
+      sqSuccess.show('Perguntas de segurança salvas com sucesso.')
+    } catch (err: unknown) {
+      setSqError(err instanceof Error ? err.message : 'Erro ao salvar perguntas.')
+    } finally {
+      setSqSaving(false)
     }
   }
 
@@ -221,6 +307,56 @@ export function Profile() {
             <div className="flex justify-end">
               <Button type="submit" loading={pwdSaving}>
                 Alterar senha
+              </Button>
+            </div>
+          </form>
+        </section>
+
+        {/* Perguntas de segurança */}
+        <section className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Perguntas de segurança</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Para alterar suas perguntas de segurança, selecione perguntas e digite as respostas novamente.
+            Suas respostas atuais não são exibidas por segurança.
+          </p>
+          <form onSubmit={handleSqSave} className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <p className="text-xs font-medium text-gray-600">
+                  Pergunta {i + 1}{i < 2 ? ' *' : ' (opcional)'}
+                </p>
+                <select
+                  value={sqBlocks[i].questionId}
+                  onChange={(e) => updateSqBlock(i, 'questionId', Number(e.target.value))}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#162447] focus:outline-none focus:ring-2 focus:ring-[#162447]/20"
+                >
+                  <option value={0}>Selecione uma pergunta</option>
+                  {getAvailableQuestions(i).map((q) => (
+                    <option key={q.id} value={q.id}>{q.text}</option>
+                  ))}
+                  {sqBlocks[i].questionId !== 0 &&
+                    !getAvailableQuestions(i).find((q) => q.id === sqBlocks[i].questionId) && (
+                      <option value={sqBlocks[i].questionId}>
+                        {allQuestions.find((q) => q.id === sqBlocks[i].questionId)?.text}
+                      </option>
+                    )}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Sua resposta"
+                  value={sqBlocks[i].answer}
+                  onChange={(e) => updateSqBlock(i, 'answer', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-[#162447] focus:outline-none focus:ring-2 focus:ring-[#162447]/20"
+                />
+              </div>
+            ))}
+
+            {sqError && <p className="text-sm text-red-600">{sqError}</p>}
+            {sqSuccess.message && <p className="text-sm text-green-600">{sqSuccess.message}</p>}
+
+            <div className="flex justify-end">
+              <Button type="submit" loading={sqSaving}>
+                Salvar perguntas
               </Button>
             </div>
           </form>

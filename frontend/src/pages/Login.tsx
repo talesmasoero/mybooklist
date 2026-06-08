@@ -67,6 +67,14 @@ export function Login() {
           <Button type="submit" loading={loading} className="mt-2 w-full">
             Entrar
           </Button>
+          <p className="text-center">
+            <Link
+              to="/esqueci-senha"
+              className="text-sm text-gray-500 hover:text-[#162447] hover:underline transition-colors"
+            >
+              Esqueci minha senha
+            </Link>
+          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">

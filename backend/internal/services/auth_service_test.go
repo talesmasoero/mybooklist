@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,6 +15,8 @@ import (
 
 	"github.com/talesmasoero/mybooklist/backend/internal/domain"
 )
+
+// ─── mockUserRepository ─────────────────────────────────────────────────────
 
 type mockUserRepository struct {
 	createFunc         func(ctx context.Context, user *domain.User) error
@@ -29,6 +31,10 @@ func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) erro
 	if m.createFunc != nil {
 		return m.createFunc(ctx, user)
 	}
+	return nil
+}
+
+func (m *mockUserRepository) CreateInTx(_ context.Context, _ *sql.Tx, _ *domain.User) error {
 	return nil
 }
 
@@ -67,96 +73,108 @@ func (m *mockUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+func newAuthSvcForTest(repo *mockUserRepository) AuthService {
+	return NewAuthService(nil, repo, nil, nil, nil, "test-secret-key-for-testing")
+}
+
 func TestMain(m *testing.M) {
 	bcryptCost = bcrypt.MinCost
 	os.Exit(m.Run())
 }
 
-func TestAuthService_Register(t *testing.T) {
+// ─── Register (input validation only — DB path requires integration test) ───
+
+func TestAuthService_Register_Validation(t *testing.T) {
+	validAnswers := []domain.SaveAnswerInput{
+		{QuestionID: 1, Answer: "resposta um"},
+		{QuestionID: 2, Answer: "resposta dois"},
+	}
+
 	tests := []struct {
 		name     string
-		email    string
-		password string
-		userName string
-		repoErr  error
-		wantErr  bool
+		input    RegisterInput
 		wantCode int
 	}{
 		{
-			name:     "success",
-			email:    "user@example.com",
-			password: "password123",
-			userName: "Test User",
-		},
-		{
-			name:     "email already exists",
-			email:    "existing@example.com",
-			password: "password123",
-			userName: "Test User",
-			repoErr:  domain.ErrUserAlreadyExists,
-			wantErr:  true,
-			wantCode: http.StatusConflict,
-		},
-		{
 			name:     "invalid email format",
-			email:    "not-an-email",
-			password: "password123",
-			userName: "Test User",
-			wantErr:  true,
+			input:    RegisterInput{Email: "not-an-email", Password: "password123", Name: "Test User", SecurityAnswers: validAnswers},
 			wantCode: http.StatusBadRequest,
 		},
 		{
 			name:     "password too short",
-			email:    "user@example.com",
-			password: "short",
-			userName: "Test User",
-			wantErr:  true,
+			input:    RegisterInput{Email: "user@example.com", Password: "short", Name: "Test User", SecurityAnswers: validAnswers},
 			wantCode: http.StatusBadRequest,
 		},
 		{
 			name:     "empty name",
-			email:    "user@example.com",
-			password: "password123",
-			userName: "",
-			wantErr:  true,
+			input:    RegisterInput{Email: "user@example.com", Password: "password123", Name: "", SecurityAnswers: validAnswers},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "no security answers",
+			input:    RegisterInput{Email: "user@example.com", Password: "password123", Name: "Test User", SecurityAnswers: nil},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "only one security answer",
+			input: RegisterInput{
+				Email: "user@example.com", Password: "password123", Name: "Test User",
+				SecurityAnswers: []domain.SaveAnswerInput{{QuestionID: 1, Answer: "resposta"}},
+			},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "four security answers (too many)",
+			input: RegisterInput{
+				Email: "user@example.com", Password: "password123", Name: "Test User",
+				SecurityAnswers: []domain.SaveAnswerInput{
+					{QuestionID: 1, Answer: "r1"}, {QuestionID: 2, Answer: "r2"},
+					{QuestionID: 3, Answer: "r3"}, {QuestionID: 4, Answer: "r4"},
+				},
+			},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "duplicate question IDs",
+			input: RegisterInput{
+				Email: "user@example.com", Password: "password123", Name: "Test User",
+				SecurityAnswers: []domain.SaveAnswerInput{
+					{QuestionID: 1, Answer: "resposta um"}, {QuestionID: 1, Answer: "outra resposta"},
+				},
+			},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "answer too short",
+			input: RegisterInput{
+				Email: "user@example.com", Password: "password123", Name: "Test User",
+				SecurityAnswers: []domain.SaveAnswerInput{
+					{QuestionID: 1, Answer: "x"}, {QuestionID: 2, Answer: "ok"},
+				},
+			},
 			wantCode: http.StatusBadRequest,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repoErr := tc.repoErr
-			repo := &mockUserRepository{
-				createFunc: func(ctx context.Context, user *domain.User) error {
-					return repoErr
-				},
-			}
-			svc := NewAuthService(repo, "test-secret-key-for-testing")
+			svc := newAuthSvcForTest(&mockUserRepository{})
+			user, accessToken, refreshToken, err := svc.Register(context.Background(), tc.input)
 
-			user, accessToken, refreshToken, err := svc.Register(context.Background(), tc.email, tc.password, tc.userName)
-
-			if tc.wantErr {
-				require.Error(t, err)
-				var appErr *domain.AppError
-				require.True(t, errors.As(err, &appErr), "error must be *domain.AppError")
-				assert.Equal(t, tc.wantCode, appErr.Code)
-				assert.Nil(t, user)
-				assert.Empty(t, accessToken)
-				assert.Empty(t, refreshToken)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, user)
-				assert.NotEmpty(t, accessToken)
-				assert.NotEmpty(t, refreshToken)
-				assert.Equal(t, strings.ToLower(tc.email), user.Email)
-				assert.Equal(t, strings.TrimSpace(tc.userName), user.Name)
-				assert.NotEmpty(t, user.PasswordHash)
-				assert.NotZero(t, user.ConsentedAt)
-				assert.NotEqual(t, uuid.Nil, user.ID)
-			}
+			require.Error(t, err)
+			var appErr *domain.AppError
+			require.True(t, errors.As(err, &appErr), "error must be *domain.AppError")
+			assert.Equal(t, tc.wantCode, appErr.Code)
+			assert.Nil(t, user)
+			assert.Empty(t, accessToken)
+			assert.Empty(t, refreshToken)
 		})
 	}
 }
+
+// ─── Login ──────────────────────────────────────────────────────────────────
 
 func TestAuthService_Login(t *testing.T) {
 	validHash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
@@ -214,7 +232,7 @@ func TestAuthService_Login(t *testing.T) {
 					return repoUser, nil
 				},
 			}
-			svc := NewAuthService(repo, "test-secret-key-for-testing")
+			svc := newAuthSvcForTest(repo)
 
 			user, accessToken, refreshToken, err := svc.Login(context.Background(), tc.email, tc.password)
 

@@ -155,6 +155,57 @@ export async function deleteSession(sessionId: string): Promise<void> {
   await api.delete(`/api/v1/sessions/${sessionId}`)
 }
 
+// ─── Security questions ──────────────────────────────────────────────────────
+
+export interface SecurityQuestion {
+  id: number
+  text: string
+}
+
+export interface SecurityAnswerPayload {
+  question_id: number
+  answer: string
+}
+
+export interface ForgotPasswordResponse {
+  user_id: string
+  questions: SecurityQuestion[]
+}
+
+export interface VerifyAnswersResponse {
+  reset_token: string
+}
+
+export async function listSecurityQuestions(): Promise<SecurityQuestion[]> {
+  const { data } = await api.get<SecurityQuestion[]>('/api/v1/security-questions')
+  return data ?? []
+}
+
+export async function getMySecurityAnswers(): Promise<number[]> {
+  const { data } = await api.get<number[]>('/api/v1/me/security-answers')
+  return data ?? []
+}
+
+export async function saveSecurityAnswers(answers: SecurityAnswerPayload[]): Promise<void> {
+  await api.patch('/api/v1/me/security-answers', { answers })
+}
+
+export async function forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  const { data } = await api.post<ForgotPasswordResponse>('/api/v1/auth/forgot-password', { email })
+  return data
+}
+
+export async function verifySecurityAnswers(userId: string, answers: SecurityAnswerPayload[]): Promise<VerifyAnswersResponse> {
+  const { data } = await api.post<VerifyAnswersResponse>('/api/v1/auth/verify-security-answers', { user_id: userId, answers })
+  return data
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await api.post('/api/v1/auth/reset-password', { token, new_password: newPassword })
+}
+
+// ─── User profile ────────────────────────────────────────────────────────────
+
 export async function getProfile(): Promise<User> {
   const { data } = await api.get<User>('/api/v1/me')
   return data

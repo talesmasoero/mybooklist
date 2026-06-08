@@ -13,6 +13,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
+	CreateInTx(ctx context.Context, tx *sql.Tx, user *domain.User) error
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	UpdateName(ctx context.Context, id uuid.UUID, name string) error
@@ -28,28 +29,36 @@ func NewPostgresUserRepository(db *sql.DB) UserRepository {
 	return &postgresUserRepository{db: db}
 }
 
-func (r *postgresUserRepository) Create(ctx context.Context, user *domain.User) error {
-	query := `
-		INSERT INTO users (id, email, password_hash, name, created_at, updated_at, consented_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
-	_, err := r.db.ExecContext(ctx, query,
-		user.ID,
-		user.Email,
-		user.PasswordHash,
-		user.Name,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.ConsentedAt,
-	)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return domain.ErrUserAlreadyExists
-		}
-		return err
+const insertUserQuery = `
+	INSERT INTO users (id, email, password_hash, name, created_at, updated_at, consented_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+func pgUserErr(err error) error {
+	if err == nil {
+		return nil
 	}
-	return nil
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return domain.ErrUserAlreadyExists
+	}
+	return err
+}
+
+func (r *postgresUserRepository) Create(ctx context.Context, user *domain.User) error {
+	_, err := r.db.ExecContext(ctx, insertUserQuery,
+		user.ID, user.Email, user.PasswordHash, user.Name,
+		user.CreatedAt, user.UpdatedAt, user.ConsentedAt,
+	)
+	return pgUserErr(err)
+}
+
+func (r *postgresUserRepository) CreateInTx(ctx context.Context, tx *sql.Tx, user *domain.User) error {
+	_, err := tx.ExecContext(ctx, insertUserQuery,
+		user.ID, user.Email, user.PasswordHash, user.Name,
+		user.CreatedAt, user.UpdatedAt, user.ConsentedAt,
+	)
+	return pgUserErr(err)
 }
 
 func (r *postgresUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {

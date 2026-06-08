@@ -56,18 +56,32 @@ func main() {
 	}
 	slog.Info("database connected")
 
+	// Repositories
 	userRepo := repositories.NewPostgresUserRepository(db)
-	authSvc := services.NewAuthService(userRepo, cfg.JWTSecret)
+	sqRepo := repositories.NewPostgresSecurityQuestionRepository(db)
+	answerRepo := repositories.NewPostgresUserSecurityAnswerRepository(db)
+	resetTokenRepo := repositories.NewPostgresPasswordResetTokenRepository(db)
+
+	// Auth
+	authSvc := services.NewAuthService(db, userRepo, answerRepo, sqRepo, resetTokenRepo, cfg.JWTSecret)
 	authHandler := handlers.NewAuthHandler(authSvc)
+
+	// Security questions
+	sqSvc := services.NewSecurityQuestionService(db, sqRepo, answerRepo)
+	sqHandler := handlers.NewSecurityQuestionHandler(sqSvc)
+
+	// User
 	userSvc := services.NewUserService(userRepo)
 	userHandler := handlers.NewUserHandler(userSvc)
 
+	// Books / library
 	bookRepo := repositories.NewPostgresBookRepository(db)
 	readingRepo := repositories.NewPostgresReadingRepository(db)
 	googleBooksClient := googlebooks.NewClient(cfg.GoogleBooksAPIKey)
 	bookSvc := services.NewBookService(bookRepo, readingRepo, googleBooksClient)
 	bookHandler := handlers.NewBookHandler(bookSvc)
 
+	// Sessions
 	sessionRepo := repositories.NewPostgresSessionRepository(db)
 	sessionSvc := services.NewSessionService(sessionRepo, readingRepo)
 	sessionHandler := handlers.NewSessionHandler(sessionSvc)
@@ -88,11 +102,18 @@ func main() {
 	r.Get("/health", handlers.Health(db))
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public routes
+		r.Get("/security-questions", sqHandler.ListQuestions)
+
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
+			r.Post("/forgot-password", authHandler.ForgotPassword)
+			r.Post("/verify-security-answers", authHandler.VerifySecurityAnswers)
+			r.Post("/reset-password", authHandler.ResetPassword)
 		})
 
+		// Protected routes (require JWT)
 		r.Group(func(r chi.Router) {
 			r.Use(appmiddleware.JWTAuth(cfg.JWTSecret))
 
@@ -111,6 +132,9 @@ func main() {
 			r.Patch("/me", userHandler.UpdateName)
 			r.Patch("/me/password", userHandler.UpdatePassword)
 			r.Delete("/me", userHandler.DeleteAccount)
+
+			r.Get("/me/security-answers", sqHandler.GetMyAnswerIDs)
+			r.Patch("/me/security-answers", sqHandler.SaveAnswers)
 		})
 	})
 

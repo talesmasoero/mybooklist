@@ -4,6 +4,7 @@ import { isAuthenticated } from '@/lib/auth'
 import { Landing } from '@/pages/Landing'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
+import { ForgotPassword } from '@/pages/ForgotPassword'
 import { Home } from '@/pages/Home'
 import { Profile } from '@/pages/Profile'
 import { ReadingDetail } from '@/pages/ReadingDetail'
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/" element={<PublicOnlyRoute><Landing /></PublicOnlyRoute>} />
         <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
+        <Route path="/esqueci-senha" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/library/:readingId" element={<ProtectedRoute><ReadingDetail /></ProtectedRoute>} />
